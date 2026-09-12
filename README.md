@@ -41,4 +41,4 @@ Status transitions are server-controlled, management views are scope-aware, auth
 
 ---
 
-Built by [Vikas Kaithia](https://github.com/vikask2-hub) · [View the complete product portfolio](https://tech4projects.online/)
+Built by [Vikask2](https://github.com/vikask2-hub) · [View the complete product portfolio](https://tech4projects.online/)
