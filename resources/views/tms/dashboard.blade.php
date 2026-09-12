@@ -1,0 +1,43 @@
+@extends('layouts.tms')
+@section('title', $tmsUser->role === 'GM' ? 'Command centre' : ($tmsUser->role === 'AM' ? 'Team cockpit' : 'My day'))
+@section('content')
+@php
+    $statusStyles = ['TODO'=>'bg-slate-100 text-slate-600','IN_PROGRESS'=>'bg-blue-50 text-blue-700','SUBMITTED'=>'bg-violet-50 text-violet-700','COMPLETED'=>'bg-emerald-50 text-emerald-700','BLOCKED'=>'bg-rose-50 text-rose-700','CANCELLED'=>'bg-slate-100 text-slate-400'];
+    $priorityStyles = ['LOW'=>'text-slate-500','MEDIUM'=>'text-blue-600','HIGH'=>'text-amber-600','URGENT'=>'text-rose-600'];
+    $toneStyles = ['blue'=>'bg-blue-50 text-blue-700','emerald'=>'bg-emerald-50 text-emerald-700','rose'=>'bg-rose-50 text-rose-700','amber'=>'bg-amber-50 text-amber-700'];
+@endphp
+<div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div><p class="text-[10px] font-bold tracking-[.15em] text-blue-600 uppercase">{{ $tmsUser->role === 'GM' ? 'Pan India overview' : ($tmsUser->role === 'AM' ? 'Team execution' : now()->format('l · d M Y')) }}</p><h1 class="mt-1 text-2xl font-extrabold tracking-[-.045em] sm:text-3xl">{{ $tmsUser->role === 'GM' ? 'Command centre' : ($tmsUser->role === 'AM' ? 'Team cockpit' : 'Good '.(now()->hour < 12 ? 'morning' : 'afternoon').', '.str($tmsUser->name)->before(' ')) }}</h1><p class="mt-1 text-xs text-slate-500">{{ $tmsUser->role === 'BDE' ? 'Your next action is ready.' : 'Live execution signals across your scope.' }}</p></div>
+    <div class="flex gap-2">@if($tmsUser->isRole('GM','AM'))<a href="{{ route('tms.tasks.create') }}" class="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-bold text-white"><i data-lucide="plus" class="size-4"></i>Create task</a><a href="{{ route('tms.tasks.index', ['status'=>'SUBMITTED']) }}" class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700"><i data-lucide="badge-check" class="size-4"></i>{{ $pendingVerification }} to verify</a>@endif</div>
+</div>
+
+<section class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Key metrics">
+    @foreach($stats as $stat)<a href="{{ route('tms.tasks.index', $stat['label'] === 'Open overdue' ? ['overdue'=>1] : ($stat['label'] === 'Blocked' ? ['status'=>'BLOCKED'] : [])) }}" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div class="flex items-center justify-between"><span class="grid size-9 place-items-center rounded-xl {{ $toneStyles[$stat['tone']] }}"><i data-lucide="{{ $stat['icon'] }}" class="size-4"></i></span><i data-lucide="arrow-up-right" class="size-4 text-slate-300"></i></div><p class="mt-4 text-2xl font-extrabold tracking-[-.04em]">{{ $stat['value'] }}</p><p class="mt-1 text-[11px] font-bold text-slate-700">{{ $stat['label'] }}</p><p class="mt-0.5 text-[9px] text-slate-400">{{ $stat['detail'] }}</p></a>@endforeach
+</section>
+
+<div class="mt-5 grid gap-5 xl:grid-cols-[1.45fr_.75fr]">
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 class="text-sm font-extrabold">{{ $tmsUser->isRole('BDE') ? 'Priority plan' : 'Today’s execution' }}</h2><p class="mt-0.5 text-[9px] text-slate-400">Ordered by urgency and due time</p></div><a href="{{ route('tms.tasks.index') }}" class="text-[10px] font-bold text-blue-600">View all →</a></div>
+        <div class="divide-y divide-slate-100">
+            @forelse($todayTasks as $task)
+                <a href="{{ route('tms.tasks.show', $task) }}" class="flex items-center gap-3 px-4 py-3.5 transition hover:bg-slate-50 sm:px-5">
+                    <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-50 text-slate-500"><i data-lucide="{{ $task->category->icon_key ?? 'square-check-big' }}" class="size-4"></i></span>
+                    <div class="min-w-0 flex-1"><div class="flex items-center gap-2"><p class="truncate text-xs font-bold">{{ $task->title }}</p>@if($task->isOverdue())<span class="rounded-full bg-rose-50 px-2 py-0.5 text-[7px] font-bold text-rose-700">OVERDUE</span>@endif</div><p class="mt-1 truncate text-[9px] text-slate-400">{{ $task->task_number }} · {{ $task->businessUnit->name }} @unless($tmsUser->isRole('BDE'))· {{ $task->assignee->name }}@endunless</p></div>
+                    <div class="shrink-0 text-right"><span class="rounded-full px-2.5 py-1 text-[7px] font-bold {{ $statusStyles[$task->status] }}">{{ str($task->status)->replace('_',' ') }}</span><p class="mt-1.5 text-[8px] font-semibold {{ $priorityStyles[$task->priority] }}">{{ $task->due_at->format('g:i A') }} · {{ $task->priority }}</p></div>
+                </a>
+            @empty
+                <div class="p-10 text-center"><span class="mx-auto grid size-12 place-items-center rounded-2xl bg-slate-50 text-slate-400"><i data-lucide="calendar-check" class="size-5"></i></span><p class="mt-3 text-xs font-bold">No tasks planned today</p><p class="mt-1 text-[10px] text-slate-400">Your schedule is clear.</p></div>
+            @endforelse
+        </div>
+    </section>
+
+    <div class="grid gap-5">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div class="flex items-center justify-between"><div><h2 class="text-sm font-extrabold">Task health</h2><p class="mt-0.5 text-[9px] text-slate-400">Current distribution</p></div><i data-lucide="activity" class="size-4 text-slate-400"></i></div><div class="mt-5 grid gap-3">@php($maxStatus=max(1,collect($statusDistribution)->max('count')))@foreach($statusDistribution as $item)<div><div class="flex justify-between text-[9px] font-semibold"><span>{{ str($item['status'])->replace('_',' ')->title() }}</span><span>{{ $item['count'] }}</span></div><div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-blue-600" style="width:{{ round($item['count']/$maxStatus*100) }}%"></div></div></div>@endforeach</div></section>
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div class="flex items-center justify-between"><div><h2 class="text-sm font-extrabold">Exceptions</h2><p class="mt-0.5 text-[9px] text-slate-400">Blocked and overdue work</p></div><a href="{{ route('tms.tasks.index', ['overdue'=>1]) }}" class="text-[9px] font-bold text-blue-600">Review</a></div><div class="mt-4 grid gap-2">@forelse($exceptions->take(3) as $task)<a href="{{ route('tms.tasks.show',$task) }}" class="rounded-xl bg-slate-50 p-3"><div class="flex items-center justify-between gap-2"><p class="truncate text-[10px] font-bold">{{ $task->title }}</p><span class="text-[8px] font-bold text-rose-600">{{ $task->status === 'BLOCKED' ? 'BLOCKED' : 'OVERDUE' }}</span></div><p class="mt-1 truncate text-[8px] text-slate-400">{{ $task->assignee->name }} · {{ $task->businessUnit->name }}</p></a>@empty<p class="py-5 text-center text-[10px] text-slate-400">No active exceptions.</p>@endforelse</div></section>
+    </div>
+</div>
+
+@unless($tmsUser->isRole('BDE'))
+<section class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 class="text-sm font-extrabold">{{ $tmsUser->isRole('GM') ? 'Assistant manager pulse' : 'BDE execution' }}</h2><p class="mt-0.5 text-[9px] text-slate-400">People who may need attention today</p></div><a href="{{ route('tms.team') }}" class="text-[10px] font-bold text-blue-600">Open team →</a></div><div class="grid divide-y divide-slate-100 md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">@foreach($team->take(4) as $member)<div class="p-4"><div class="flex items-center gap-3"><span class="grid size-9 place-items-center rounded-xl text-[10px] font-extrabold text-white" style="background:{{ $member->avatar_color }}">{{ collect(explode(' ',$member->name))->map(fn($n)=>mb_substr($n,0,1))->take(2)->join('') }}</span><div class="min-w-0"><p class="truncate text-[11px] font-bold">{{ $member->name }}</p><p class="mt-0.5 truncate text-[8px] text-slate-400">{{ $member->defaultBusinessUnit?->name }}</p></div></div><div class="mt-4 flex items-center justify-between text-[9px]"><span class="text-slate-400">{{ $tmsUser->isRole('GM') ? $member->reports_count.' reports' : $member->completed_today_count.' / '.$member->tasks_today_count.' complete' }}</span><a href="{{ route('tms.tasks.create', ['assignee'=>$member->id]) }}" class="font-bold text-blue-600">Assign</a></div></div>@endforeach</div></section>
+@endunless
+@endsection
